@@ -4,11 +4,10 @@ Visit the [Assignment page](https://thiagosoutogit.github.io/ProgrammingOracle/P
 
 Here is an overview of the system
 
-<br>
-<div style="text-align: center;">
-<img src="../Figures/ASS1/Frequency-Relay-System-01.png"  alt="Frequency-Relay-System">
-</div>
-<br>
+
+![alt text](Figures/ASS1/Frequency-Relay-System-01.png)
+
+
 
 ## Task 1
 
