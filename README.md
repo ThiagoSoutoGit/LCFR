@@ -2,6 +2,13 @@
 
 Visit the [Assignment page](https://thiagosoutogit.github.io/ProgrammingOracle/Pages/Embedded/Assignment-1.html#takes-from-assignment-1-brief) for the complete documentation on the development of the software.
 
+Here is an overview of the system
+
+<br>
+<div style="text-align: center;">
+<img src="../Figures/ASS1/Frequency-Relay-System-01.png"  alt="Frequency-Relay-System">
+</div>
+<br>
 
 ## Task 1
 
@@ -46,6 +53,55 @@ void task1(void *pvParameters) {
 
         // Sleep for a while (adjust the delay as needed)
         vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+```
+
+## Task 2
+
+Task 2 (Manage loads): Manages loads based on the network stability and relay state. The loads can be managed by controlling their states (e.g., turning them on or off). The task also updates LED states according to the load status and relay state.
+
+```c
+void task2(void *pvParameters) {
+    while(1) {
+        // Check network stability and relay state
+        xSemaphoreTake(xMutex, portMAX_DELAY);
+        int net_stability_local = net_stability;
+        int relay_state_local = relay_state;
+        xSemaphoreGive(xMutex);
+
+        // Perform load shedding or reconnection based on the network stability, priority, and relay state
+        for (int i = 0; i < MAX_LOADS; i++) {
+            if (load_priority[i] == PRIORITY_HIGH && net_stability_local == 0) {
+                load_status[i] = 0; // shed high priority load if network is unstable
+            } else if (load_priority[i] == PRIORITY_LOW && relay_state_local == 0) {
+                load_status[i] = 0; // shed low priority load if relay is off
+            } else {
+                load_status[i] = 1; // reconnect load if conditions are met
+            }
+        }
+
+        // Update LED states according to load status and relay state
+        for (int i = 0; i < MAX_LOADS; i++) {
+            // Set LED state according to load status
+            if (load_status[i] == 1) {
+                IOWR_ALTERA_AVALON_PIO_DATA(GREEN_LEDS_BASE, (1 << i));
+            } else {
+                IOWR_ALTERA_AVALON_PIO_DATA(GREEN_LEDS_BASE, ~(1 << i));
+            }
+        }
+
+        // Sleep for a while (adjust the delay as needed)
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+        // Print load status
+        printf("Task 2 - Manage Loads: \n");
+		for (int i = 0; i < MAX_LOADS; i++) {
+			printf("Load %d = %d\n", i + 1, load_status[i]);
+		}
+
+        // Sleep for a while (adjust the delay as needed)
+		vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 ```
