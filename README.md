@@ -113,14 +113,14 @@ Task 3 (Update VGA display): Reads shared variables and updates the VGA display 
 void task3(void *pvParameters) {
     alt_up_pixel_buffer_dma_dev *pixel_buf;
     pixel_buf = alt_up_pixel_buffer_dma_open_dev(VIDEO_PIXEL_BUFFER_DMA_NAME);
-    if(pixel_buf == NULL){
+    if (pixel_buf == NULL) {
         printf("Cannot find pixel buffer device\n");
     }
     alt_up_pixel_buffer_dma_clear_screen(pixel_buf, 0);
 
     alt_up_char_buffer_dev *char_buf;
     char_buf = alt_up_char_buffer_open_dev("/dev/video_character_buffer_with_dma");
-    if(char_buf == NULL){
+    if (char_buf == NULL) {
         printf("can't find char buffer device\n");
     }
 
@@ -132,37 +132,43 @@ void task3(void *pvParameters) {
 
     char freq_text[20];
     char roc_text[20];
+    char mode_status_text[20];
     char load_status_text[MAX_LOADS][20];
 
-    while(1) {
+    while (1) {
         // Read shared variables
         xSemaphoreTake(xMutex, portMAX_DELAY);
         float inst_freq_local = inst_freq;
         float roc_freq_local = roc_freq;
+        int relay_state_local = relay_state;
         int load_status_local[MAX_LOADS];
         for (int i = 0; i < MAX_LOADS; i++) {
             load_status_local[i] = load_status[i];
         }
         xSemaphoreGive(xMutex);
 
-        // Clear lines before updating VGA display with frequency, rate of change, and load status information
-		for (int i = 0; i < (MAX_LOADS + 2); i++) {
-			custom_char_buffer_clear_line(char_buf, 30 + i);
-		}
+        // Clear lines before updating VGA display with frequency, rate of change, mode, and load status information
+        for (int i = 0; i < (MAX_LOADS + 3); i++) {
+            custom_char_buffer_clear_line(char_buf, 30 + i);
+        }
 
-		// Update VGA display with frequency and rate of change information
-		snprintf(freq_text, sizeof(freq_text), "Frequency: %.2f Hz", 16000 / (double)inst_freq_local);
-		alt_up_char_buffer_string(char_buf, freq_text, 40, 30);
-		snprintf(roc_text, sizeof(roc_text), "RoC: %.2f Hz/s", roc_freq_local);
-		alt_up_char_buffer_string(char_buf, roc_text, 40, 31);
+        // Update VGA display with frequency and rate of change information
+        snprintf(freq_text, sizeof(freq_text), "Frequency: %.2f Hz", 16000 / (double)inst_freq_local);
+        alt_up_char_buffer_string(char_buf, freq_text, 40, 30);
+        snprintf(roc_text, sizeof(roc_text), "RoC: %.2f Hz/s", roc_freq_local);
+        alt_up_char_buffer_string(char_buf, roc_text, 40, 32);
 
-		// Update VGA display with load status information
-		for (int i = 0; i < MAX_LOADS; i++) {
-			snprintf(load_status_text[i], sizeof(load_status_text[i]), "Load %d: %s", i + 1, load_status_local[i] ? "ON" : "OFF");
-			alt_up_char_buffer_string(char_buf, load_status_text[i], 40, 33 + i);
-		}
+        // Update VGA display with mode status information
+        snprintf(mode_status_text, sizeof(mode_status_text), "Mode: %s", relay_state_local ? "Maintenance" : "Normal");
+        alt_up_char_buffer_string(char_buf, mode_status_text, 40, 34);
 
-		vTaskDelay(pdMS_TO_TICKS(1000));
-	}
+        // Update VGA display with load status information
+        for (int i = 0; i < MAX_LOADS; i++) {
+            snprintf(load_status_text[i], sizeof(load_status_text[i]), "Load %d: %s", i + 1, load_status_local[i] ? "ON" : "OFF");
+            alt_up_char_buffer_string(char_buf, load_status_text[i], 40, 36 + i);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 }
 ```
