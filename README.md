@@ -2,21 +2,30 @@
 
 Visit the [Assignment page](https://thiagosoutogit.github.io/ProgrammingOracle/Pages/Embedded/Assignment-1.html#takes-from-assignment-1-brief) for the complete documentation on the development of the software.
 
-Here is an overview of the system
-
-
-![alt text](Figures/ASS1/Frequency-Relay-System-01.png)
-
 
 ## Usage
 
-1. In normal mode, the system works autonomously. The frequency and rate of change is calculated and the loads are dropped if te network is unstable.
+1. Clone this repository.
+
+2. The digital design is provided in the form of a .sof programming file To program the Cyclone IV on the DE2 115, start Quartus from the Altera submenu of the Start menu. Connect the DE2 115 board with power and ensure the USB cable is connected to the port labeled “BLASTER” on the board. Use the given `freq_relay_controller.sof` to program the board. And use the also given `nios2.sopcinfo` to program the `bsp` project using the Nios II software building tool for Eclipse.
+
+## Summary of the system
+
+1. In normal mode, the system works autonomously. The frequency and rate of change are calculated and the loads are dropped if the network is unstable.
 
 2. In maintenance mode switches SW1 to SW5 control the loads, and the user can switch them on and off.
 
 3. Push button KEY1 switches from normal mode to maintenance mode.
 
 4. the lED R0 to R4 represent loads 1 to 5.
+
+
+Here is an overview of the system
+
+
+![alt text](Figures/ASS1/Frequency-Relay-System-01.png)
+
+
 
 
 
