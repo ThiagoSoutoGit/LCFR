@@ -172,3 +172,47 @@ void task3(void *pvParameters) {
     }
 }
 ```
+
+
+## ISR 1
+
+ISR 1 handles user inputs:
+
+Detect slide switch position changes and update the corresponding load status.
+Detect push button press to toggle the relay state between normal and maintenance.
+Use mutexes for accessing shared resources to ensure mutual exclusion.
+
+```c
+void ISR1(void *context, alt_u32 id) {
+    // Handle user input (slide switches and push button)
+    alt_u32 slide_switches_value = IORD_ALTERA_AVALON_PIO_EDGE_CAP(SLIDE_SWITCH_BASE);
+    alt_u32 push_button_value = IORD_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE);
+
+    // Reset edge capture registers
+    IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE, 0x0);
+    IOWR_ALTERA_AVALON_PIO_IRQ_MASK(PUSH_BUTTON_BASE, 0x2);
+
+    // Update shared resources (load_status and relay_state)
+    xSemaphoreTakeFromISR(xMutex, 0);
+
+    // Update relay_state based on the push button KEY1
+    if (push_button_value & 0x2) { // Changed from 0x1 to 0x2 to use KEY1
+        printf("ISR 1 - Changing the relay state: \n");
+        printf("relay state: %s.\n", relay_state ? "Maintenance" : "Normal");
+    	relay_state = !relay_state;
+    	printf("ISR 1 - relay state after the change: \n");
+		printf("relay state: %s.\n", relay_state ? "Maintenance" : "Normal");
+    }
+
+    // Update load_status based on the slide switches only when the relay state is in maintenance
+    if (relay_state == 1) {
+        for (int i = 0; i < MAX_LOADS; i++) {
+            if (slide_switches_value & (1 << i)) {
+                load_status[i] = !load_status[i];
+            }
+        }
+    }
+
+    xSemaphoreGiveFromISR(xMutex, 0);
+}
+```

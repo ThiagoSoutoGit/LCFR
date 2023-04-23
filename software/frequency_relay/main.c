@@ -76,7 +76,16 @@ int main() {
     xTaskCreate(task3, "Update VGA display", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);
 
 
-    alt_irq_register(task1, 0, (void (*)(void *, alt_u32))task1);
+//    alt_irq_register(task1, 0, (void (*)(void *, alt_u32))task1);
+
+    alt_irq_register(PUSH_BUTTON_BASE, 0, ISR1);
+    // Clear edge capture register
+    IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE, 0x0);
+
+    // Enable interrupt for KEY1
+    IOWR_ALTERA_AVALON_PIO_IRQ_MASK(PUSH_BUTTON_BASE, 0x2);
+
+
 
     // Create the mutex for shared resources
     xMutex = xSemaphoreCreateMutex();
@@ -249,18 +258,18 @@ void task3(void *pvParameters) {
 
         // Update VGA display with frequency and rate of change information
         snprintf(freq_text, sizeof(freq_text), "Frequency: %.2f Hz", 16000 / (double)inst_freq_local);
-        alt_up_char_buffer_string(char_buf, freq_text, 40, 30);
+        alt_up_char_buffer_string(char_buf, freq_text, 30, 25);
         snprintf(roc_text, sizeof(roc_text), "RoC: %.2f Hz/s", roc_freq_local);
-        alt_up_char_buffer_string(char_buf, roc_text, 40, 32);
+        alt_up_char_buffer_string(char_buf, roc_text, 30, 27);
 
         // Update VGA display with mode status information
         snprintf(mode_status_text, sizeof(mode_status_text), "Mode: %s", relay_state_local ? "Maintenance" : "Normal");
-        alt_up_char_buffer_string(char_buf, mode_status_text, 40, 34);
+        alt_up_char_buffer_string(char_buf, mode_status_text, 30, 29);
 
         // Update VGA display with load status information
         for (int i = 0; i < MAX_LOADS; i++) {
             snprintf(load_status_text[i], sizeof(load_status_text[i]), "Load %d: %s", i + 1, load_status_local[i] ? "ON" : "OFF");
-            alt_up_char_buffer_string(char_buf, load_status_text[i], 40, 36 + i);
+            alt_up_char_buffer_string(char_buf, load_status_text[i], 30, 31 + i);
         }
 
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -273,15 +282,19 @@ void ISR1(void *context, alt_u32 id) {
     alt_u32 push_button_value = IORD_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE);
 
     // Reset edge capture registers
-    IOWR_ALTERA_AVALON_PIO_EDGE_CAP(SLIDE_SWITCH_BASE, 0x0);
     IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE, 0x0);
+    IOWR_ALTERA_AVALON_PIO_IRQ_MASK(PUSH_BUTTON_BASE, 0x2);
 
     // Update shared resources (load_status and relay_state)
     xSemaphoreTakeFromISR(xMutex, 0);
 
-    // Update relay_state based on the push button
-    if (push_button_value & 0x1) {
-        relay_state = !relay_state;
+    // Update relay_state based on the push button KEY1
+    if (push_button_value & 0x2) { // Changed from 0x1 to 0x2 to use KEY1
+        printf("ISR 1 - Changing the relay state: \n");
+        printf("relay state: %s.\n", relay_state ? "Maintenance" : "Normal");
+    	relay_state = !relay_state;
+    	printf("ISR 1 - relay state after the change: \n");
+		printf("relay state: %s.\n", relay_state ? "Maintenance" : "Normal");
     }
 
     // Update load_status based on the slide switches only when the relay state is in maintenance
@@ -295,6 +308,7 @@ void ISR1(void *context, alt_u32 id) {
 
     xSemaphoreGiveFromISR(xMutex, 0);
 }
+
 
 void ISR2(TimerHandle_t xTimer) {
     // Measure the time intervals and update timing measurements
