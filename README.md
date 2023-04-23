@@ -8,6 +8,17 @@ Here is an overview of the system
 ![alt text](Figures/ASS1/Frequency-Relay-System-01.png)
 
 
+## Usage
+
+1. In normal mode, the system works autonomously. The frequency and rate of change is calculated and the loads are dropped if te network is unstable.
+
+2. In maintenance mode switches SW1 to SW5 control the loads, and the user can switch them on and off.
+
+3. Push button KEY1 switches from normal mode to maintenance mode.
+
+4. the lED R0 to R4 represent loads 1 to 5.
+
+
 
 ## Task 1
 
