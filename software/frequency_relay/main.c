@@ -9,6 +9,17 @@
 #include "freertos/timers.h"
 #include "altera_avalon_pio_regs.h"
 
+#include "altera_up_avalon_video_character_buffer_with_dma.h"
+#include "altera_up_avalon_video_pixel_buffer_dma.h"
+
+
+
+
+// an LED for each task
+#define LED_TASK1_BASE 0x42020
+#define LED_TASK2_BASE 0x42030
+#define LED_TASK3_BASE 0x42040
+
 
 
 // Constants and hardware definitions
@@ -40,14 +51,25 @@ void task3(void *pvParameters);
 void ISR1(void *context, alt_u32 id);
 void ISR2(TimerHandle_t xTimer);
 
+
+///VGA
+
+#include "altera_up_avalon_video_character_buffer_with_dma.h"
+
+#define VGA_CHAR_BUFFER_BASE 0x40000
+#define VGA_CHAR_CONTROL_BASE 0x430e8
+
+
+
 int main() {
     // Initialize hardware, peripherals, and shared resources
     // ...
 
+
     // Create the tasks
     xTaskCreate(task1, "Monitor frequency and RoC", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(task2, "Manage loads", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-    xTaskCreate(task3, "Update VGA display", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+    xTaskCreate(task3, "Update VGA display", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);
 
 
     alt_irq_register(task1, 0, (void (*)(void *, alt_u32))task1);
@@ -71,6 +93,14 @@ int main() {
 }
 
 void task1(void *pvParameters) {
+
+	// Blink LED for Task 1
+	IOWR_ALTERA_AVALON_PIO_DATA(LED_TASK1_BASE, 0x1);
+	vTaskDelay(pdMS_TO_TICKS(100));
+	IOWR_ALTERA_AVALON_PIO_DATA(LED_TASK1_BASE, 0x0);
+	vTaskDelay(pdMS_TO_TICKS(100));
+
+
     // Variables for frequency measurement and rate of change calculation
     float prev_freq = 0;
     float curr_freq = 0;
@@ -113,6 +143,14 @@ void task1(void *pvParameters) {
 
 void task2(void *pvParameters) {
     while(1) {
+
+    	// Blink LED for Task 2
+		IOWR_ALTERA_AVALON_PIO_DATA(LED_TASK2_BASE, 0x1);
+		vTaskDelay(pdMS_TO_TICKS(100));
+		IOWR_ALTERA_AVALON_PIO_DATA(LED_TASK2_BASE, 0x0);
+		vTaskDelay(pdMS_TO_TICKS(100));
+
+
         // Check network stability and relay state
         xSemaphoreTake(xMutex, portMAX_DELAY);
         int net_stability_local = net_stability;
@@ -154,17 +192,69 @@ void task2(void *pvParameters) {
     }
 }
 
+// VGA
+
+void custom_char_buffer_clear_line(alt_up_char_buffer_dev *char_buf, int line) {
+    for (int i = 0; i < 80; i++) {
+        alt_up_char_buffer_draw(char_buf, ' ', i, line);
+    }
+}
+
+
 void task3(void *pvParameters) {
+    alt_up_pixel_buffer_dma_dev *pixel_buf;
+    pixel_buf = alt_up_pixel_buffer_dma_open_dev(VIDEO_PIXEL_BUFFER_DMA_NAME);
+    if(pixel_buf == NULL){
+        printf("Cannot find pixel buffer device\n");
+    }
+    alt_up_pixel_buffer_dma_clear_screen(pixel_buf, 0);
+
+    alt_up_char_buffer_dev *char_buf;
+    char_buf = alt_up_char_buffer_open_dev("/dev/video_character_buffer_with_dma");
+    if(char_buf == NULL){
+        printf("can't find char buffer device\n");
+    }
+
+    // Blink LED for Task 3
+    IOWR_ALTERA_AVALON_PIO_DATA(LED_TASK3_BASE, 0x1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    IOWR_ALTERA_AVALON_PIO_DATA(LED_TASK3_BASE, 0x0);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    char freq_text[20];
+    char roc_text[20];
+    char load_status_text[MAX_LOADS][20];
+
     while(1) {
         // Read shared variables
-        // ...
+        xSemaphoreTake(xMutex, portMAX_DELAY);
+        float inst_freq_local = inst_freq;
+        float roc_freq_local = roc_freq;
+        int load_status_local[MAX_LOADS];
+        for (int i = 0; i < MAX_LOADS; i++) {
+            load_status_local[i] = load_status[i];
+        }
+        xSemaphoreGive(xMutex);
 
-        // Update VGA display with frequency relay information
-        // ...
+        // Clear lines before updating VGA display with frequency, rate of change, and load status information
+		for (int i = 0; i < (MAX_LOADS + 2); i++) {
+			custom_char_buffer_clear_line(char_buf, 30 + i);
+		}
 
-        // Sleep for a while (adjust the delay as needed)
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
+		// Update VGA display with frequency and rate of change information
+		snprintf(freq_text, sizeof(freq_text), "Frequency: %.2f Hz", 16000 / (double)inst_freq_local);
+		alt_up_char_buffer_string(char_buf, freq_text, 40, 30);
+		snprintf(roc_text, sizeof(roc_text), "RoC: %.2f Hz/s", roc_freq_local);
+		alt_up_char_buffer_string(char_buf, roc_text, 40, 31);
+
+		// Update VGA display with load status information
+		for (int i = 0; i < MAX_LOADS; i++) {
+			snprintf(load_status_text[i], sizeof(load_status_text[i]), "Load %d: %s", i + 1, load_status_local[i] ? "ON" : "OFF");
+			alt_up_char_buffer_string(char_buf, load_status_text[i], 40, 33 + i);
+		}
+
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
 }
 
 void ISR1(void *context, alt_u32 id) {

@@ -10,7 +10,12 @@ obj/default/main.o: main.c ../frequency_relay_bsp/system.h \
  freertos/semphr.h freertos/queue.h freertos/timers.h freertos/task.h \
  ../frequency_relay_bsp//drivers/inc/altera_avalon_pio_regs.h \
  ../frequency_relay_bsp//HAL/inc/io.h \
- ../frequency_relay_bsp//HAL/inc/alt_types.h
+ ../frequency_relay_bsp//HAL/inc/alt_types.h \
+ ../frequency_relay_bsp//drivers/inc/altera_up_avalon_video_character_buffer_with_dma.h \
+ ../frequency_relay_bsp//HAL/inc/sys/alt_dev.h \
+ ../frequency_relay_bsp//HAL/inc/sys/alt_llist.h \
+ ../frequency_relay_bsp//HAL/inc/priv/alt_dev_llist.h \
+ ../frequency_relay_bsp//drivers/inc/altera_up_avalon_video_pixel_buffer_dma.h
 
 ../frequency_relay_bsp/system.h:
 
@@ -55,3 +60,13 @@ freertos/task.h:
 ../frequency_relay_bsp//HAL/inc/io.h:
 
 ../frequency_relay_bsp//HAL/inc/alt_types.h:
+
+../frequency_relay_bsp//drivers/inc/altera_up_avalon_video_character_buffer_with_dma.h:
+
+../frequency_relay_bsp//HAL/inc/sys/alt_dev.h:
+
+../frequency_relay_bsp//HAL/inc/sys/alt_llist.h:
+
+../frequency_relay_bsp//HAL/inc/priv/alt_dev_llist.h:
+
+../frequency_relay_bsp//drivers/inc/altera_up_avalon_video_pixel_buffer_dma.h:
