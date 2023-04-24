@@ -27,7 +27,26 @@ Here is an overview of the system
 
 
 
+## Overview of the code:
 
+The code is an implementation of a load management system for an electrical power grid using FreeRTOS. The load management system monitors the power grid's frequency and its rate of change, and manages the connected loads based on their priority levels and the network stability.
+
+The code includes the following:
+
+1. Header files and libraries, including FreeRTOS, hardware-specific headers, and standard C libraries.
+2. Task, IRQ, and Timer function prototypes.
+3. Global variables and constants, such as priorities, load statuses, relay state, and network stability.
+4. The main function, which initializes the hardware, creates tasks, sets up interrupts, and starts the scheduler.
+5. Three tasks:
+* task1: Monitors the frequency and rate of change (RoC) of the power grid.
+* task2: Manages the loads by shedding or reconnecting them based on network stability, priority, and relay state.
+* task3: Updates the VGA display with frequency, rate of change, mode, and load status information.
+6. Two interrupt service routines (ISRs):
+* ISR1: Handles user input (slide switches and push button) and updates shared resources (load_status and relay_state).
+* ISR2: A timer interrupt that calculates the rate of change (RoC) in frequency and initiates load management if needed.
+7. A custom VGA function for clearing a line on the VGA display.
+
+The system utilizes FreeRTOS tasks, a mutex for shared resource management, and timer-based interrupts to manage the power grid's loads based on frequency and its rate of change. The implementation also includes a VGA display to show the current state of the system.
 
 ## Task 1
 
@@ -234,5 +253,34 @@ void ISR1(void *context, alt_u32 id) {
     }
 
     xSemaphoreGiveFromISR(xMutex, 0);
+}
+```
+
+
+## ISR 2
+
+ISR 2 is a timer interrupt that calculates the rate of change (RoC) in frequency and initiates load management if needed.
+
+```c
+void ISR2(TimerHandle_t xTimer) {
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    // Increment the timing_counter
+    timing_counter++;
+
+
+    // Calculate the rate of change (RoC) in frequency
+    float roc = (inst_freq - last_frequency) / pdMS_TO_TICKS(200);
+
+    // Check for under-frequency and rate of change (RoC) conditions
+    bool under_freq_condition = inst_freq < THRESHOLD_FREQ;
+    bool roc_condition = fabs(roc) > THRESHOLD_ROC;
+
+    // If either condition is met, start load management (shedding)
+    if (under_freq_condition || roc_condition) {
+    }
+
+    // Update the last_frequency for the next calculation
+    last_frequency = inst_freq;
 }
 ```

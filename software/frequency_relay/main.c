@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <math.h>
 
 #include "system.h"
 
@@ -17,6 +19,8 @@
 
 
 
+// ISR 2
+int timing_counter = 0;
 
 
 // an LED for each task
@@ -41,6 +45,7 @@ int relay_state = 0;
 int net_stability = 0;
 
 // Shared resources
+float last_frequency = 50.0;
 float inst_freq = 0;
 float roc_freq = 0;
 int timing_meas[5] = {0};
@@ -78,12 +83,13 @@ int main() {
 
 //    alt_irq_register(task1, 0, (void (*)(void *, alt_u32))task1);
 
-    alt_irq_register(PUSH_BUTTON_BASE, 0, ISR1);
-    // Clear edge capture register
-    IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE, 0x0);
+    alt_irq_register(PUSH_BUTTON_BASE, 0, (void (*)(void *, alt_u32))ISR1);
 
-    // Enable interrupt for KEY1
-    IOWR_ALTERA_AVALON_PIO_IRQ_MASK(PUSH_BUTTON_BASE, 0x2);
+    // Enable the interrupt
+	IOWR_ALTERA_AVALON_PIO_IRQ_MASK(PUSH_BUTTON_BASE, 0x2);
+
+	// Clear any pending interrupts
+	IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE, 0);
 
 
 
@@ -277,12 +283,15 @@ void task3(void *pvParameters) {
 }
 
 void ISR1(void *context, alt_u32 id) {
+	printf("ISR 1 - Changing the relay state: \n");
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
     // Handle user input (slide switches and push button)
     alt_u32 slide_switches_value = IORD_ALTERA_AVALON_PIO_EDGE_CAP(SLIDE_SWITCH_BASE);
     alt_u32 push_button_value = IORD_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE);
 
     // Reset edge capture registers
-    IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PUSH_BUTTON_BASE, 0x0);
+    IOWR_ALTERA_AVALON_PIO_EDGE_CAP(SLIDE_SWITCH_BASE, 0x0);
     IOWR_ALTERA_AVALON_PIO_IRQ_MASK(PUSH_BUTTON_BASE, 0x2);
 
     // Update shared resources (load_status and relay_state)
@@ -311,11 +320,26 @@ void ISR1(void *context, alt_u32 id) {
 
 
 void ISR2(TimerHandle_t xTimer) {
-    // Measure the time intervals and update timing measurements
-    // ...
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    // Update shared resources (timing_meas)
-    xSemaphoreTakeFromISR(xMutex, 0);
-    // Update timing_meas array
-    xSemaphoreGiveFromISR(xMutex, 0);
+    // Increment the timing_counter
+    timing_counter++;
+
+
+    // Calculate the rate of change (RoC) in frequency
+    float roc = (inst_freq - last_frequency) / pdMS_TO_TICKS(200);
+
+    // Check for under-frequency and rate of change (RoC) conditions
+    bool under_freq_condition = inst_freq < THRESHOLD_FREQ;
+    bool roc_condition = fabs(roc) > THRESHOLD_ROC;
+
+    // If either condition is met, start load management (shedding)
+    if (under_freq_condition || roc_condition) {
+    }
+
+    // Update the last_frequency for the next calculation
+    last_frequency = inst_freq;
+
+    // Force a context switch if needed
+//    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
